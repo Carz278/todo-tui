@@ -17,6 +17,14 @@
 - **`;` command mode** to prevent accidental actions
 
 ## Installation
+### Quick install
+
+    git clone https://github.com/Carz278/todo-tui.git
+    cd todo-tui
+    ./install.sh
+
+Then follow the printed instructions to update `cli.json` and `hypr-user.lua`.
+
 
 ### 1. System dependencies
 
