@@ -1,0 +1,103 @@
+# todo-tui
+
+A lightweight terminal todo list TUI, designed to replace the heavy Todoist integration in [Caelestia](https://github.com/caelestia-dots/caelestia) dotfiles.
+
+## Features
+
+- **Lightweight**: pure Python + curses
+- **Caelestia friendly**: integrates with the `special:todo` workspace
+- **Bilingual**: English and Traditional Chinese (zh-TW)
+- **UTF-8 support**: Chinese input works natively
+- **Flexible dates**: `2026-10-05`, `05/10`, `3 days`, `tmr`, `tomorrow`
+- **Two task types**: deadline-based or point-event
+- **Short comment + detailed content**
+- **Search**: fuzzy matching with `;/`
+- **`;` command mode** to prevent accidental actions
+
+## Installation
+
+### 1. System dependencies
+
+    sudo pacman -S python-dateutil python-parsedatetime
+
+### 2. Clone this repository
+
+    git clone https://github.com/YOUR_USERNAME/todo-tui.git
+    cd todo-tui
+
+### 3. Create a venv and install Python dependencies
+
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+    deactivate
+
+### 4. Copy settings template
+
+    mkdir -p ~/.config/caelestia
+    cp todo-settings.json ~/.config/caelestia/todo-settings.json
+
+### 5. Configure Caelestia
+
+Edit `~/.config/caelestia/cli.json`:
+
+    {
+      "toggles": {
+        "todo": {
+          "todo-tui": {
+            "enable": true,
+            "match": [{"class": "todo-tui"}],
+            "command": [
+              "foot", "-a", "todo-tui", "-T", "Todo List",
+              "-e", "/home/YOUR_USER/Projects/todo-tui/.venv/bin/python3",
+              "/home/YOUR_USER/Projects/todo-tui/todo.py"
+            ],
+            "move": true
+          }
+        }
+      }
+    }
+
+Edit `~/.config/caelestia/hypr-user.lua`:
+
+    hl.bind("SUPER + R", hl.dsp.exec_cmd("/home/YOUR_USER/Projects/todo-tui/toggle-todo.sh"))
+
+### 6. Log out and log back in
+
+## Usage
+
+- `Super + R` — open/close
+- `Up/Down` or `w/s` — move cursor
+- `Space` — toggle done
+- `Enter` — open detail page
+- `;a` — add task
+- `;d` — delete current task
+- `;q` — quit
+- `;/` — search (use Up/Down to navigate)
+
+### Detail page
+
+- `Tab` — switch fields (name -> short -> content)
+- `Enter` — newline in content
+- `;s` — save
+- `;b` — back (asks to save if unsaved)
+- `;/` — search
+
+## Configuration
+
+Edit `~/.config/caelestia/todo-settings.json`:
+
+    {
+      "language": "zh-TW",
+      "date_format": "DD/MM/YYYY",
+      "max_name": 40,
+      "max_short_comment": 50,
+      "max_content": 500
+    }
+
+- `language`: `en` or `zh-TW`
+- `date_format`: `DD/MM/YYYY`, `YYYY-MM-DD`, `MM/DD/YYYY`, `DD-MM-YYYY`
+
+## License
+
+MIT

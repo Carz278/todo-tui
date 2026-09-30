@@ -1,0 +1,7 @@
+{
+  "language": "zh-TW",
+  "date_format": "DD/MM/YYYY",
+  "max_name": 40,
+  "max_short_comment": 50,
+  "max_content": 500
+}

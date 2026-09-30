@@ -1,0 +1,25 @@
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# 用户数据（绝对不上传）
+todo.json
+*.bak
+*.log
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 系统
+.DS_Store
+Thumbs.db
