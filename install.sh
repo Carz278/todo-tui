@@ -9,46 +9,90 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-info()  { echo -e "${BLUE}[INFO]${NC} $1"; }
-ok()    { echo -e "${GREEN}[ OK ]${NC} $1"; }
-warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
-err()   { echo -e "${RED}[FAIL]${NC} $1"; }
+info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+ok()   { echo -e "${GREEN}[ OK ]${NC} $1"; }
+warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+err()  { echo -e "${RED}[FAIL]${NC} $1"; }
+
+# ==================== 发行版检测 ====================
+detect_distro() {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        echo "$ID"
+    else
+        echo "unknown"
+    fi
+}
+
+install_system_deps() {
+    local distro
+    distro=$(detect_distro)
+
+    case "$distro" in
+        arch|manjaro|endeavouros)
+            info "检测到 Arch 系发行版，使用 pacman 安装系统依赖..."
+            sudo pacman -S --needed python-dateutil python-parsedatetime
+            ;;
+        debian|ubuntu|linuxmint|pop)
+            info "检测到 Debian 系发行版，使用 apt 安装系统依赖..."
+            sudo apt update
+            sudo apt install -y python3-dateutil python3-parsedatetime
+            ;;
+        fedora|rhel|centos)
+            info "检测到 Fedora 系发行版，使用 dnf 安装系统依赖..."
+            sudo dnf install -y python3-dateutil python3-parsedatetime
+            ;;
+        *)
+            warn "未识别的发行版: $distro"
+            warn "请手动安装以下 Python 库："
+            warn "  - python-dateutil"
+            warn "  - parsedatetime"
+            warn "你可以尝试：pip install python-dateutil parsedatetime"
+            return 1
+            ;;
+    esac
+    return 0
+}
 
 # ==================== 基本检查 ====================
 info "检查基本环境..."
 
 if ! command -v python3 &> /dev/null; then
-    err "未找到 python3，请先安装：sudo pacman -S python"
+    err "未找到 python3，请先安装 Python 3。"
     exit 1
 fi
 ok "python3 已安装"
 
-if ! command -v pacman &> /dev/null; then
-    warn "未检测到 pacman，可能不是 Arch Linux 系统。请手动安装 Python 依赖。"
-fi
-
 # ==================== 系统依赖 ====================
 info "检查系统 Python 依赖..."
-MISSING=()
-for pkg in python-dateutil python-parsedatetime; do
-    if ! pacman -Q "$pkg" &> /dev/null; then
-        MISSING+=("$pkg")
-    fi
-done
 
-if [ ${#MISSING[@]} -gt 0 ]; then
-    warn "缺少系统包：${MISSING[*]}"
-    read -p "是否现在安装？[Y/n] " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
-        sudo pacman -S --needed "${MISSING[@]}"
+# 检查是否已安装（仅 Arch 可直接用 pacman -Q）
+if command -v pacman &> /dev/null; then
+    MISSING=()
+    for pkg in python-dateutil python-parsedatetime; do
+        if ! pacman -Q "$pkg" &> /dev/null; then
+            MISSING+=("$pkg")
+        fi
+    done
+
+    if [ ${#MISSING[@]} -gt 0 ]; then
+        warn "缺少系统包：${MISSING[*]}"
+        read -p "是否现在安装？[Y/n] " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
+            install_system_deps
+        else
+            warn "跳过系统依赖安装。"
+        fi
     else
-        warn "跳过系统依赖安装。如果后续运行报错，请手动安装：sudo pacman -S ${MISSING[*]}"
+        ok "系统依赖已满足"
     fi
+else
+    warn "未检测到 pacman，尝试自动安装系统依赖..."
+    install_system_deps || true
 fi
-ok "系统依赖检查完成"
 
 # ==================== 项目路径 ====================
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -87,7 +131,6 @@ fi
 
 # ==================== 检查 Caelestia ====================
 info "检查 Caelestia 配置..."
-
 CAELESTIA_DIR="$HOME/.config/caelestia"
 if [ ! -d "$CAELESTIA_DIR" ]; then
     err "未找到 ~/.config/caelestia/，请先安装 Caelestia："
@@ -96,10 +139,9 @@ if [ ! -d "$CAELESTIA_DIR" ]; then
 fi
 ok "Caelestia 配置目录存在"
 
-USER_HOME="$HOME"
+# ==================== 打印配置指南 ====================
 PROJECT_DIR="$SCRIPT_DIR"
 
-# ==================== 打印配置指南 ====================
 echo
 echo "============================================"
 echo "  安装完成！还需要手动修改两个文件"
