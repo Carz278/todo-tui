@@ -111,3 +111,21 @@ Edit `~/.config/caelestia/todo-settings.json`:
 ## License
 
 MIT
+
+## ⚠️ Conflict with Caelestia's default Todoist
+
+If you've already run `caelestia install`, your Caelestia setup may already include a Todoist integration that uses the same `Super+R` keybind and `special:todo` workspace.
+
+To avoid conflicts, you must do **both** of these:
+
+1. **Disable Caelestia's default keybind** in `~/.config/caelestia/hypr-vars.lua`:
+
+       return {
+         kbTodoWs = "",
+       }
+
+2. **Override the keybind** in `~/.config/caelestia/hypr-user.lua`:
+
+       hl.bind("SUPER + R", hl.dsp.exec_cmd("/path/to/todo-tui/toggle-todo.sh"))
+
+Without step 1, pressing `Super+R` will try to launch Todoist (which may not even exist) and your todo-tui simultaneously, causing windows to stack.

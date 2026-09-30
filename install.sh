@@ -2,7 +2,7 @@
 # install.sh — 一键部署 todo-tui 到 Caelestia 环境
 # 用法: ./install.sh
 
-set -e  # 遇到错误立即退出
+set -e
 
 # ==================== 颜色 ====================
 RED='\033[0;31m'
@@ -29,7 +29,6 @@ detect_distro() {
 install_system_deps() {
     local distro
     distro=$(detect_distro)
-
     case "$distro" in
         arch|manjaro|endeavouros)
             info "检测到 Arch 系发行版，使用 pacman 安装系统依赖..."
@@ -46,10 +45,7 @@ install_system_deps() {
             ;;
         *)
             warn "未识别的发行版: $distro"
-            warn "请手动安装以下 Python 库："
-            warn "  - python-dateutil"
-            warn "  - parsedatetime"
-            warn "你可以尝试：pip install python-dateutil parsedatetime"
+            warn "请手动安装 python-dateutil 和 parsedatetime。"
             return 1
             ;;
     esac
@@ -58,7 +54,6 @@ install_system_deps() {
 
 # ==================== 基本检查 ====================
 info "检查基本环境..."
-
 if ! command -v python3 &> /dev/null; then
     err "未找到 python3，请先安装 Python 3。"
     exit 1
@@ -67,8 +62,6 @@ ok "python3 已安装"
 
 # ==================== 系统依赖 ====================
 info "检查系统 Python 依赖..."
-
-# 检查是否已安装（仅 Arch 可直接用 pacman -Q）
 if command -v pacman &> /dev/null; then
     MISSING=()
     for pkg in python-dateutil python-parsedatetime; do
@@ -76,7 +69,6 @@ if command -v pacman &> /dev/null; then
             MISSING+=("$pkg")
         fi
     done
-
     if [ ${#MISSING[@]} -gt 0 ]; then
         warn "缺少系统包：${MISSING[*]}"
         read -p "是否现在安装？[Y/n] " -n 1 -r
@@ -123,7 +115,6 @@ info "复制设置文件到 ~/.config/caelestia/..."
 mkdir -p "$HOME/.config/caelestia"
 if [ -f "$HOME/.config/caelestia/todo-settings.json" ]; then
     warn "todo-settings.json 已存在，保留现有配置。"
-    warn "如需重置，请手动复制：cp $SCRIPT_DIR/todo-settings.json ~/.config/caelestia/todo-settings.json"
 else
     cp "$SCRIPT_DIR/todo-settings.json" "$HOME/.config/caelestia/todo-settings.json"
     ok "todo-settings.json 已复制"
@@ -133,23 +124,58 @@ fi
 info "检查 Caelestia 配置..."
 CAELESTIA_DIR="$HOME/.config/caelestia"
 if [ ! -d "$CAELESTIA_DIR" ]; then
-    err "未找到 ~/.config/caelestia/，请先安装 Caelestia："
-    err "  https://github.com/caelestia-dots/caelestia"
+    err "未找到 ~/.config/caelestia/，请先安装 Caelestia。"
     exit 1
 fi
 ok "Caelestia 配置目录存在"
 
+# ==================== 冲突检查 ====================
+echo
+echo "============================================"
+echo -e "${YELLOW}⚠️  冲突检查（重要）${NC}"
+echo "============================================"
+echo
+
+CONFLICT_FOUND=0
+
+HYPR_VARS="$CAELESTIA_DIR/hypr-vars.lua"
+if [ -f "$HYPR_VARS" ]; then
+    if ! grep -q 'kbTodoWs *= *""' "$HYPR_VARS"; then
+        warn "检测到 hypr-vars.lua 里的 kbTodoWs 没有被置空。"
+        warn "这会导致 Super+R 同时触发 Caelestia 自带的 todo 逻辑。"
+        echo
+        echo "  请把 $HYPR_VARS 改成："
+        echo
+        echo '    return {'
+        echo '      kbTodoWs = "",'
+        echo '    }'
+        echo
+        CONFLICT_FOUND=1
+    else
+        ok "hypr-vars.lua 已正确置空 kbTodoWs"
+    fi
+fi
+
+CLI_JSON="$CAELESTIA_DIR/cli.json"
+if [ -f "$CLI_JSON" ]; then
+    if grep -q '"todo"' "$CLI_JSON"; then
+        ok "cli.json 已有 todo 配置，替换为下面内容即可。"
+    fi
+fi
+
+if [ "$CONFLICT_FOUND" = "1" ]; then
+    echo
+    warn "请先解决上面的冲突，否则 Super+R 会同时打开 Todoist 和 todo-tui。"
+fi
+
 # ==================== 打印配置指南 ====================
 PROJECT_DIR="$SCRIPT_DIR"
-
 echo
 echo "============================================"
 echo "  安装完成！还需要手动修改两个文件"
 echo "============================================"
 echo
 echo -e "${YELLOW}1. 编辑 ~/.config/caelestia/cli.json${NC}"
-echo "   （如果文件不存在，创建它；如果已存在，把 todo 部分合并进去）"
-echo
 echo "   复制以下内容："
 echo
 cat <<CLI_EOF
@@ -173,13 +199,11 @@ CLI_EOF
 
 echo
 echo -e "${YELLOW}2. 编辑 ~/.config/caelestia/hypr-user.lua${NC}"
-echo "   （加入下面这行）"
+echo "   加入下面这行："
 echo
 echo "    hl.bind(\"SUPER + R\", hl.dsp.exec_cmd(\"$PROJECT_DIR/toggle-todo.sh\"))"
 echo
 echo "============================================"
 echo -e "${GREEN}最后一步：注销并重新登录，让配置生效。${NC}"
 echo "============================================"
-echo
-echo -e "如果遇到问题，请查看 README.md 或提 issue。"
 echo
