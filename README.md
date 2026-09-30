@@ -1,6 +1,8 @@
 # todo-tui
 
-A lightweight terminal todo list TUI, designed to replace the heavy Todoist integration in [Caelestia](https://github.com/caelestia-dots/caelestia) dotfiles.
+> **A terminal todo list TUI designed specifically for [Caelestia](https://github.com/caelestia-dots/caelestia) dotfiles.**
+
+`todo-tui` replaces the heavy Todoist integration in Caelestia with a lightweight, customizable alternative. It integrates directly with Caelestia's `special:todo` workspace, `cli.json` toggle mechanism, and `hypr-user.lua` keybind override.
 
 ## Features
 
