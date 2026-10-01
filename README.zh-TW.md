@@ -34,6 +34,12 @@
 
 接著依照輸出的說明，修改 `hypr-vars.lua` 和 `hypr-user.lua`。
 
+安裝腳本支援兩種輸出語言：
+
+    ./install.sh          # 預設：英文
+    ./install.sh --en     # 英文
+    ./install.sh --zh     # 繁體中文
+
 ### 手動安裝
 
 1. 安裝系統依賴：

@@ -34,6 +34,12 @@ It replaces the heavy Todoist integration in Caelestia with a lightweight altern
 
 Then follow the printed instructions to update `hypr-vars.lua` and `hypr-user.lua`.
 
+The installer supports two output languages:
+
+    ./install.sh          # default: English
+    ./install.sh --en     # English
+    ./install.sh --zh     # Traditional Chinese
+
 ### Manual install
 
 1. Install system dependencies:

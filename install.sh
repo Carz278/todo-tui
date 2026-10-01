@@ -1,15 +1,28 @@
 #!/bin/bash
 # install.sh - Deploy todo-tui to a Caelestia environment
-# Usage: ./install.sh
+# Usage: ./install.sh [--zh|--en]
+# Default language: English
 
 set -e
 
-# ==================== Language detection ====================
-if [[ "$LANG" == zh* ]] || [[ "$LC_ALL" == zh* ]]; then
-    LANG_CODE="zh"
-else
-    LANG_CODE="en"
-fi
+# ==================== Language argument ====================
+LANG_CODE="en"
+for arg in "$@"; do
+    case "$arg" in
+        --zh|--zh-TW|--chinese)
+            LANG_CODE="zh"
+            ;;
+        --en|--english)
+            LANG_CODE="en"
+            ;;
+        --help|-h)
+            echo "Usage: $0 [--zh|--en]"
+            echo "  --zh    Use Traditional Chinese output"
+            echo "  --en    Use English output (default)"
+            exit 0
+            ;;
+    esac
+done
 
 # ==================== Colors ====================
 RED='\033[0;31m'
