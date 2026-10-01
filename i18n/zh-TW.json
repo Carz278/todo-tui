@@ -33,5 +33,6 @@
   "days_today": " [今天到期]",
   "point_days_after": " [ {n} 天後]",
   "point_days_past": " [已過  {n} 天]",
-  "point_today": " [就是今天]"
+  "point_today": " [就是今天]",
+  "sort_label": "排序"
 }

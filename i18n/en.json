@@ -33,5 +33,6 @@
   "days_today": " [due today]",
   "point_days_after": " [in  {n} days]",
   "point_days_past": " [ {n} days ago]",
-  "point_today": " [today]"
+  "point_today": " [today]",
+  "sort_label": "sort"
 }

@@ -12,14 +12,14 @@ class MultiLineEditor:
         return "\n".join(self.lines)
 
     def insert_char(self, ch, max_len):
-        if sum(len(l) for l in self.lines) >= max_len:
+        if len(self.get_text()) >= max_len:
             return
         line = self.lines[self.row]
         self.lines[self.row] = line[:self.col] + ch + line[self.col:]
         self.col += 1
 
     def insert_newline(self, max_len):
-        if sum(len(l) for l in self.lines) >= max_len:
+        if len(self.get_text()) >= max_len:
             return
         line = self.lines[self.row]
         self.lines[self.row] = line[:self.col]

@@ -46,7 +46,8 @@ def tr(i18n, key, **kwargs):
 
 
 def draw_main(stdscr, tasks, selected, view_offset, settings, i18n,
-              command_mode=False, search_mode=False, search_query=""):
+              command_mode=False, search_mode=False, search_query="",
+              sort_mode=0):
     stdscr.clear()
     h, w = stdscr.getmaxyx()
     stdscr.addstr(0, 0, tr(i18n, "title"))
@@ -63,6 +64,16 @@ def draw_main(stdscr, tasks, selected, view_offset, settings, i18n,
         if i == selected:
             stdscr.attron(curses.A_REVERSE)
         mark = "[*]" if task["done"] else "[ ]"
+
+        # Priority marker
+        prio = task.get("priority", 0)
+        prio_str = " " * 3
+        if prio == 1:
+            prio_str = "*  "
+        elif prio == 2:
+            prio_str = "** "
+        elif prio == 3:
+            prio_str = "***"
 
         task_type = task.get("task_type", "deadline")
         if task_type == "point":
@@ -94,18 +105,23 @@ def draw_main(stdscr, tasks, selected, view_offset, settings, i18n,
                 first = first[:20] + "..."
             short_disp = f" ({first})"
 
-        line = f"{mark} {task['name']}{short_disp}{dstr}"
+        line = f"{mark} {prio_str} {task['name']}{short_disp}{dstr}"
         stdscr.addstr(screen_y, 0, line[:w - 1])
         if i == selected:
             stdscr.attroff(curses.A_REVERSE)
 
+    # Bottom status
     if search_mode:
         stdscr.addstr(h - 1, 0, tr(i18n, "search_prompt") + search_query)
     elif command_mode:
         stdscr.addstr(h - 1, 0, ": ")
     else:
-        stdscr.addstr(h - 1, 0, tr(i18n, "task_count", n=len(tasks)))
+        sort_name = {0: "default", 1: "deadline", 2: "priority"}[sort_mode]
+        stdscr.addstr(h - 1, 0,
+                      tr(i18n, "task_count", n=len(tasks)) +
+                      f"  |  sort: {sort_name}")
     stdscr.refresh()
+
 
 
 def draw_detail(stdscr, task, settings, i18n):
@@ -177,8 +193,13 @@ def draw_detail(stdscr, task, settings, i18n):
                          max=settings['max_content']))
         if edit_field == 3:
             stdscr.attron(curses.A_REVERSE)
-        for i, line in enumerate(content_editor.lines):
-            stdscr.addstr(content_start_y + 1 + i, 0, line)
+        h, w = stdscr.getmaxyx()
+        max_rows = h - (content_start_y + 1) - 2
+        start_row = max(0, content_editor.row - max_rows + 1)
+        end_row = min(len(content_editor.lines), start_row + max_rows)
+        for i in range(start_row, end_row):
+            stdscr.addstr(content_start_y + 1 + (i - start_row), 0,
+                          content_editor.lines[i][:w - 1])
         if edit_field == 3:
             stdscr.attroff(curses.A_REVERSE)
 
@@ -188,24 +209,22 @@ def draw_detail(stdscr, task, settings, i18n):
             stdscr.move(short_content_y,
                         min(str_width(short_comment[:short_col]), 78))
         else:
-            stdscr.move(content_start_y + 1 + content_editor.row,
+            screen_row = content_start_y + 1 + (content_editor.row - start_row)
+            stdscr.move(screen_row,
                         min(str_width(content_editor.lines[content_editor.row][:content_editor.col]), 78))
 
         stdscr.refresh()
         key = stdscr.getch()
 
-        # Tab
         if key == 9:
             edit_field = {0: 2, 2: 3, 3: 0}[edit_field]
             continue
 
-        # Enter
         if key == curses.KEY_ENTER or key in (10, 13):
             if edit_field == 3:
                 content_editor.insert_newline(settings['max_content'])
             continue
 
-        # ; 命令
         if key == ord(';'):
             stdscr.move(22, 0)
             stdscr.clrtoeol()
@@ -297,7 +316,6 @@ def draw_detail(stdscr, task, settings, i18n):
                             content_editor.row, content_editor.col = t[1]
             continue
 
-        # n/N 跳转
         if key == ord('n') and search_matches:
             search_index = (search_index + 1) % len(search_matches)
             t = search_matches[search_index]
@@ -317,7 +335,6 @@ def draw_detail(stdscr, task, settings, i18n):
                 content_editor.row, content_editor.col = t[1]
             continue
 
-        # 方向键
         if key == curses.KEY_UP:
             if edit_field == 3:
                 content_editor.move_up()
@@ -343,7 +360,6 @@ def draw_detail(stdscr, task, settings, i18n):
                 content_editor.move_right()
             continue
 
-        # 退格
         if key in (curses.KEY_BACKSPACE, 127, 8):
             if edit_field == 0 and name_col > 0:
                 name = name[:name_col - 1] + name[name_col:]
@@ -355,7 +371,6 @@ def draw_detail(stdscr, task, settings, i18n):
                 content_editor.backspace()
             continue
 
-        # 可打印字符（含 UTF-8 中文）
         ch = None
         if 32 <= key <= 126:
             ch = chr(key)
@@ -370,6 +385,7 @@ def draw_detail(stdscr, task, settings, i18n):
                 short_col += len(ch)
             elif edit_field == 3:
                 content_editor.insert_char(ch, settings['max_content'])
+
 
 
 def input_with_counter(stdscr, y, prompt, max_len, i18n, allow_empty=False):
