@@ -99,7 +99,7 @@ Main page:
 
 Detail page:
 
-- `Tab`: switch fields (name → short comment → content)
+- `Tab`: switch fields (name -> short comment -> content)
 - `Enter`: newline in content
 - `;s`: save
 - `;b`: back (asks to save if unsaved)
@@ -136,8 +136,7 @@ And make sure `kbTodoWs` is empty in `~/.config/caelestia/hypr-vars.lua`.
 
 ## Credits
 
-Inspired by the design of Caelestia's built-in clipboard and HyDE's todo menu.
-Reimplemented independently.
+UI and interaction inspired in part by Doom Emacs.
 
 ## License
 
