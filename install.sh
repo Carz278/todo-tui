@@ -1,22 +1,125 @@
 #!/bin/bash
-# install.sh — 一键部署 todo-tui 到 Caelestia 环境
-# 用法: ./install.sh
+# install.sh - Deploy todo-tui to a Caelestia environment
+# Usage: ./install.sh
 
 set -e
 
-# ==================== 颜色 ====================
+# ==================== Language detection ====================
+if [[ "$LANG" == zh* ]] || [[ "$LC_ALL" == zh* ]]; then
+    LANG_CODE="zh"
+else
+    LANG_CODE="en"
+fi
+
+# ==================== Colors ====================
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-info() { echo -e "${BLUE}[INFO]${NC} $1"; }
-ok()   { echo -e "${GREEN}[ OK ]${NC} $1"; }
-warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
-err()  { echo -e "${RED}[FAIL]${NC} $1"; }
+# ==================== Messages ====================
+if [ "$LANG_CODE" = "zh" ]; then
+    MSG_CHECK_ENV="检查基本环境..."
+    MSG_OK="OK"
+    MSG_WARN="警告"
+    MSG_FAIL="失败"
+    MSG_PYTHON_MISSING="未找到 python3，请先安装 Python 3。"
+    MSG_PYTHON_OK="python3 已安装"
+    MSG_CHECK_DEPS="检查系统 Python 依赖..."
+    MSG_DEPS_MISSING="缺少系统包："
+    MSG_INSTALL_NOW="是否现在安装？[Y/n] "
+    MSG_DEPS_OK="系统依赖已满足"
+    MSG_SKIP_DEPS="跳过系统依赖安装。"
+    MSG_DETECT_ARCH="检测到 Arch 系发行版，使用 pacman 安装系统依赖..."
+    MSG_DETECT_DEBIAN="检测到 Debian 系发行版，使用 apt 安装系统依赖..."
+    MSG_DETECT_FEDORA="检测到 Fedora 系发行版，使用 dnf 安装系统依赖..."
+    MSG_DISTRO_UNKNOWN="未识别的发行版："
+    MSG_MANUAL_DEPS="请手动安装 python-dateutil 和 parsedatetime。"
+    MSG_PROJECT_DIR="项目目录："
+    MSG_CREATE_VENV="创建 Python venv..."
+    MSG_VENV_CREATED="venv 已创建"
+    MSG_VENV_EXISTS="venv 已存在，跳过创建"
+    MSG_INSTALL_PY_DEPS="安装 Python 依赖到 venv..."
+    MSG_PY_DEPS_OK="Python 依赖安装完成"
+    MSG_NO_REQUIREMENTS="未找到 requirements.txt"
+    MSG_COPY_SETTINGS="复制设置文件到 ~/.config/caelestia/..."
+    MSG_SETTINGS_EXISTS="todo-settings.json 已存在，保留现有配置。"
+    MSG_SETTINGS_COPIED="todo-settings.json 已复制"
+    MSG_CHECK_CAELESTIA="检查 Caelestia 配置..."
+    MSG_CAELESTIA_MISSING="未找到 ~/.config/caelestia/，请先安装 Caelestia。"
+    MSG_CAELESTIA_OK="Caelestia 配置目录存在"
+    MSG_CONFLICT_TITLE="冲突检查（重要）"
+    MSG_CONFLICT_KBTODO="检测到 hypr-vars.lua 里的 kbTodoWs 没有被置空。"
+    MSG_CONFLICT_KBTODO_WHY="这会导致 Super+R 同时触发 Caelestia 自带的 todo 逻辑。"
+    MSG_CONFLICT_KBTODO_FIX="请把文件改成："
+    MSG_CONFLICT_KBTODO_OK="hypr-vars.lua 已正确置空 kbTodoWs"
+    MSG_CONFLICT_TODOIST="检测到系统里仍安装着 Todoist。"
+    MSG_CONFLICT_TODOIST_WHY="这可能导致 Super+R 同时打开 Todoist 和 todo-tui。"
+    MSG_CONFLICT_TODOIST_FIX="卸载命令："
+    MSG_CONFLICT_TODOIST_OK="系统里没有 Todoist"
+    MSG_CONFLICT_RESOLVE="请先解决上面的冲突，否则 Super+R 可能行为异常。"
+    MSG_DONE_TITLE="安装完成！还需要手动修改两个文件"
+    MSG_STEP1="1. 编辑 ~/.config/caelestia/cli.json"
+    MSG_STEP1_DESC="   复制以下内容："
+    MSG_STEP2="2. 编辑 ~/.config/caelestia/hypr-user.lua"
+    MSG_STEP2_DESC="   加入下面这行："
+    MSG_LAST_STEP="最后一步：注销并重新登录，让配置生效。"
+else
+    MSG_CHECK_ENV="Checking basic environment..."
+    MSG_OK="OK"
+    MSG_WARN="WARN"
+    MSG_FAIL="FAIL"
+    MSG_PYTHON_MISSING="python3 not found. Please install Python 3."
+    MSG_PYTHON_OK="python3 is installed"
+    MSG_CHECK_DEPS="Checking system Python dependencies..."
+    MSG_DEPS_MISSING="Missing system packages: "
+    MSG_INSTALL_NOW="Install them now? [Y/n] "
+    MSG_DEPS_OK="System dependencies satisfied"
+    MSG_SKIP_DEPS="Skipping system dependency installation."
+    MSG_DETECT_ARCH="Detected Arch-based distro, using pacman..."
+    MSG_DETECT_DEBIAN="Detected Debian-based distro, using apt..."
+    MSG_DETECT_FEDORA="Detected Fedora-based distro, using dnf..."
+    MSG_DISTRO_UNKNOWN="Unknown distro: "
+    MSG_MANUAL_DEPS="Please install python-dateutil and parsedatetime manually."
+    MSG_PROJECT_DIR="Project directory: "
+    MSG_CREATE_VENV="Creating Python venv..."
+    MSG_VENV_CREATED="venv created"
+    MSG_VENV_EXISTS="venv already exists, skipping"
+    MSG_INSTALL_PY_DEPS="Installing Python dependencies into venv..."
+    MSG_PY_DEPS_OK="Python dependencies installed"
+    MSG_NO_REQUIREMENTS="requirements.txt not found"
+    MSG_COPY_SETTINGS="Copying settings to ~/.config/caelestia/..."
+    MSG_SETTINGS_EXISTS="todo-settings.json already exists, keeping current config."
+    MSG_SETTINGS_COPIED="todo-settings.json copied"
+    MSG_CHECK_CAELESTIA="Checking Caelestia configuration..."
+    MSG_CAELESTIA_MISSING="~/.config/caelestia/ not found. Please install Caelestia first."
+    MSG_CAELESTIA_OK="Caelestia config directory exists"
+    MSG_CONFLICT_TITLE="Conflict check (important)"
+    MSG_CONFLICT_KBTODO="kbTodoWs in hypr-vars.lua is not empty."
+    MSG_CONFLICT_KBTODO_WHY="This will cause Super+R to trigger both Caelestia's todo and todo-tui."
+    MSG_CONFLICT_KBTODO_FIX="Please edit the file to:"
+    MSG_CONFLICT_KBTODO_OK="hypr-vars.lua already empties kbTodoWs"
+    MSG_CONFLICT_TODOIST="Todoist is still installed on your system."
+    MSG_CONFLICT_TODOIST_WHY="This may cause Super+R to open both Todoist and todo-tui."
+    MSG_CONFLICT_TODOIST_FIX="To remove it:"
+    MSG_CONFLICT_TODOIST_OK="No Todoist found on the system"
+    MSG_CONFLICT_RESOLVE="Please resolve the conflicts above before using Super+R."
+    MSG_DONE_TITLE="Installation complete. Two files still need manual edits."
+    MSG_STEP1="1. Edit ~/.config/caelestia/cli.json"
+    MSG_STEP1_DESC="   Copy the following:"
+    MSG_STEP2="2. Edit ~/.config/caelestia/hypr-user.lua"
+    MSG_STEP2_DESC="   Add this line:"
+    MSG_LAST_STEP="Last step: log out and log back in to apply changes."
+fi
 
-# ==================== 发行版检测 ====================
+# ==================== Helpers ====================
+info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+ok()   { echo -e "${GREEN}[ $MSG_OK ]${NC} $1"; }
+warn() { echo -e "${YELLOW}[$MSG_WARN]${NC} $1"; }
+err()  { echo -e "${RED}[$MSG_FAIL]${NC} $1"; }
+
+# ==================== Distro detection ====================
 detect_distro() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
@@ -31,37 +134,37 @@ install_system_deps() {
     distro=$(detect_distro)
     case "$distro" in
         arch|manjaro|endeavouros)
-            info "检测到 Arch 系发行版，使用 pacman 安装系统依赖..."
+            info "$MSG_DETECT_ARCH"
             sudo pacman -S --needed python-dateutil python-parsedatetime
             ;;
         debian|ubuntu|linuxmint|pop)
-            info "检测到 Debian 系发行版，使用 apt 安装系统依赖..."
+            info "$MSG_DETECT_DEBIAN"
             sudo apt update
             sudo apt install -y python3-dateutil python3-parsedatetime
             ;;
         fedora|rhel|centos)
-            info "检测到 Fedora 系发行版，使用 dnf 安装系统依赖..."
+            info "$MSG_DETECT_FEDORA"
             sudo dnf install -y python3-dateutil python3-parsedatetime
             ;;
         *)
-            warn "未识别的发行版: $distro"
-            warn "请手动安装 python-dateutil 和 parsedatetime。"
+            warn "$MSG_DISTRO_UNKNOWN$distro"
+            warn "$MSG_MANUAL_DEPS"
             return 1
             ;;
     esac
     return 0
 }
 
-# ==================== 基本检查 ====================
-info "检查基本环境..."
+# ==================== Basic checks ====================
+info "$MSG_CHECK_ENV"
 if ! command -v python3 &> /dev/null; then
-    err "未找到 python3，请先安装 Python 3。"
+    err "$MSG_PYTHON_MISSING"
     exit 1
 fi
-ok "python3 已安装"
+ok "$MSG_PYTHON_OK"
 
-# ==================== 系统依赖 ====================
-info "检查系统 Python 依赖..."
+# ==================== System dependencies ====================
+info "$MSG_CHECK_DEPS"
 if command -v pacman &> /dev/null; then
     MISSING=()
     for pkg in python-dateutil python-parsedatetime; do
@@ -70,69 +173,69 @@ if command -v pacman &> /dev/null; then
         fi
     done
     if [ ${#MISSING[@]} -gt 0 ]; then
-        warn "缺少系统包：${MISSING[*]}"
-        read -p "是否现在安装？[Y/n] " -n 1 -r
+        warn "$MSG_DEPS_MISSING${MISSING[*]}"
+        read -p "$MSG_INSTALL_NOW" -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
             install_system_deps
         else
-            warn "跳过系统依赖安装。"
+            warn "$MSG_SKIP_DEPS"
         fi
     else
-        ok "系统依赖已满足"
+        ok "$MSG_DEPS_OK"
     fi
 else
-    warn "未检测到 pacman，尝试自动安装系统依赖..."
+    warn "$MSG_DISTRO_UNKNOWN"
     install_system_deps || true
 fi
 
-# ==================== 项目路径 ====================
+# ==================== Project path ====================
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-info "项目目录: $SCRIPT_DIR"
+info "$MSG_PROJECT_DIR$SCRIPT_DIR"
 
-# ==================== 创建 venv ====================
+# ==================== Create venv ====================
 if [ ! -d "$SCRIPT_DIR/.venv" ]; then
-    info "创建 Python venv..."
+    info "$MSG_CREATE_VENV"
     python3 -m venv "$SCRIPT_DIR/.venv"
-    ok "venv 已创建"
+    ok "$MSG_VENV_CREATED"
 else
-    ok "venv 已存在，跳过创建"
+    ok "$MSG_VENV_EXISTS"
 fi
 
-# ==================== 安装 Python 依赖到 venv ====================
-info "安装 Python 依赖到 venv..."
+# ==================== Install Python dependencies ====================
+info "$MSG_INSTALL_PY_DEPS"
 if [ -f "$SCRIPT_DIR/requirements.txt" ]; then
     "$SCRIPT_DIR/.venv/bin/pip" install --upgrade pip --quiet
     "$SCRIPT_DIR/.venv/bin/pip" install -r "$SCRIPT_DIR/requirements.txt" --quiet
-    ok "Python 依赖安装完成"
+    ok "$MSG_PY_DEPS_OK"
 else
-    err "未找到 requirements.txt"
+    err "$MSG_NO_REQUIREMENTS"
     exit 1
 fi
 
-# ==================== 复制设置文件 ====================
-info "复制设置文件到 ~/.config/caelestia/..."
+# ==================== Copy settings ====================
+info "$MSG_COPY_SETTINGS"
 mkdir -p "$HOME/.config/caelestia"
 if [ -f "$HOME/.config/caelestia/todo-settings.json" ]; then
-    warn "todo-settings.json 已存在，保留现有配置。"
+    warn "$MSG_SETTINGS_EXISTS"
 else
     cp "$SCRIPT_DIR/todo-settings.json" "$HOME/.config/caelestia/todo-settings.json"
-    ok "todo-settings.json 已复制"
+    ok "$MSG_SETTINGS_COPIED"
 fi
 
-# ==================== 检查 Caelestia ====================
-info "检查 Caelestia 配置..."
+# ==================== Check Caelestia ====================
+info "$MSG_CHECK_CAELESTIA"
 CAELESTIA_DIR="$HOME/.config/caelestia"
 if [ ! -d "$CAELESTIA_DIR" ]; then
-    err "未找到 ~/.config/caelestia/，请先安装 Caelestia。"
+    err "$MSG_CAELESTIA_MISSING"
     exit 1
 fi
-ok "Caelestia 配置目录存在"
+ok "$MSG_CAELESTIA_OK"
 
-# ==================== 冲突检查 ====================
+# ==================== Conflict check ====================
 echo
 echo "============================================"
-echo -e "${YELLOW}⚠️  冲突检查（重要）${NC}"
+echo "  $MSG_CONFLICT_TITLE"
 echo "============================================"
 echo
 
@@ -141,10 +244,10 @@ CONFLICT_FOUND=0
 HYPR_VARS="$CAELESTIA_DIR/hypr-vars.lua"
 if [ -f "$HYPR_VARS" ]; then
     if ! grep -q 'kbTodoWs *= *""' "$HYPR_VARS"; then
-        warn "检测到 hypr-vars.lua 里的 kbTodoWs 没有被置空。"
-        warn "这会导致 Super+R 同时触发 Caelestia 自带的 todo 逻辑。"
+        warn "$MSG_CONFLICT_KBTODO"
+        warn "$MSG_CONFLICT_KBTODO_WHY"
         echo
-        echo "  请把 $HYPR_VARS 改成："
+        echo "  $MSG_CONFLICT_KBTODO_FIX"
         echo
         echo '    return {'
         echo '      kbTodoWs = "",'
@@ -152,31 +255,35 @@ if [ -f "$HYPR_VARS" ]; then
         echo
         CONFLICT_FOUND=1
     else
-        ok "hypr-vars.lua 已正确置空 kbTodoWs"
+        ok "$MSG_CONFLICT_KBTODO_OK"
     fi
 fi
 
-CLI_JSON="$CAELESTIA_DIR/cli.json"
-if [ -f "$CLI_JSON" ]; then
-    if grep -q '"todo"' "$CLI_JSON"; then
-        ok "cli.json 已有 todo 配置，替换为下面内容即可。"
-    fi
+if command -v todoist &> /dev/null || pacman -Q todoist &> /dev/null 2>&1; then
+    warn "$MSG_CONFLICT_TODOIST"
+    warn "$MSG_CONFLICT_TODOIST_WHY"
+    echo
+    echo "  $MSG_CONFLICT_TODOIST_FIX"
+    echo "    sudo pacman -Rns todoist"
+    echo
+    CONFLICT_FOUND=1
+else
+    ok "$MSG_CONFLICT_TODOIST_OK"
 fi
 
 if [ "$CONFLICT_FOUND" = "1" ]; then
-    echo
-    warn "请先解决上面的冲突，否则 Super+R 会同时打开 Todoist 和 todo-tui。"
+    warn "$MSG_CONFLICT_RESOLVE"
 fi
 
-# ==================== 打印配置指南 ====================
+# ==================== Print guide ====================
 PROJECT_DIR="$SCRIPT_DIR"
 echo
 echo "============================================"
-echo "  安装完成！还需要手动修改两个文件"
+echo "  $MSG_DONE_TITLE"
 echo "============================================"
 echo
-echo -e "${YELLOW}1. 编辑 ~/.config/caelestia/cli.json${NC}"
-echo "   复制以下内容："
+echo "$MSG_STEP1"
+echo "$MSG_STEP1_DESC"
 echo
 cat <<CLI_EOF
 {
@@ -196,14 +303,13 @@ cat <<CLI_EOF
   }
 }
 CLI_EOF
-
 echo
-echo -e "${YELLOW}2. 编辑 ~/.config/caelestia/hypr-user.lua${NC}"
-echo "   加入下面这行："
+echo "$MSG_STEP2"
+echo "$MSG_STEP2_DESC"
 echo
 echo "    hl.bind(\"SUPER + R\", hl.dsp.exec_cmd(\"$PROJECT_DIR/toggle-todo.sh\"))"
 echo
 echo "============================================"
-echo -e "${GREEN}最后一步：注销并重新登录，让配置生效。${NC}"
+echo "  $MSG_LAST_STEP"
 echo "============================================"
 echo
