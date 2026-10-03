@@ -1,8 +1,8 @@
 # todo-tui
 
-專為 [Caelestia](https://github.com/caelestia-dots/caelestia) dotfiles 設計的終端待辦清單 TUI。
+專為 [Caelestia](https://github.com/caelestia-dots/caelestia) / Hyprland 設計的輕量終端待辦清單。
 
-用以取代 Caelestia 內建笨重的 Todoist 整合。
+用以取代 Caelestia 內建笨重的 Todoist 整合，並整合進 `special:todo` 工作區。
 
 [English README](README.md)
 
@@ -13,7 +13,6 @@
 - 雙語：英文與繁體中文（zh-TW）
 - UTF-8 輸入：中日韓文字原生支援
 - 寬容日期解析：`2026-10-05`、`05/10`、`3 days`、`tmr`、`tomorrow`
-- 兩種任務類型：截止型、時間點型
 - 短備註 + 詳細內容
 - 模糊搜尋（`;/`）
 - `;` 命令模式，避免誤觸
@@ -32,7 +31,7 @@
     cd todo-tui
     ./install.sh
 
-接著依照輸出的說明，修改 `hypr-vars.lua` 和 `hypr-user.lua`。
+接著依照輸出的說明，修改 `cli.json`。
 
 安裝腳本支援兩種輸出語言：
 
@@ -59,17 +58,7 @@
 
        cp todo-settings.json ~/.config/caelestia/todo-settings.json
 
-4. 停用 Caelestia 內建的 todo 快捷鍵。編輯 `~/.config/caelestia/hypr-vars.lua`：
-
-       return {
-         kbTodoWs = "",
-       }
-
-5. 綁定自己的快捷鍵。編輯 `~/.config/caelestia/hypr-user.lua`：
-
-       hl.bind("SUPER + R", hl.dsp.exec_cmd("/path/to/todo-tui/toggle-todo.sh"))
-
-6. 設定 Caelestia。編輯 `~/.config/caelestia/cli.json`：
+4. 設定 Caelestia。編輯 `~/.config/caelestia/cli.json`（如果不存在就建立）：
 
        {
          "toggles": {
@@ -88,7 +77,11 @@
          }
        }
 
-7. 登出後重新登入。
+   把 `/path/to/todo-tui` 換成實際路徑。
+
+5. 登出後重新登入。
+
+這樣就好了。按 `Super + R` 就會在 `special:todo` 工作區打開 `todo-tui`。
 
 ## 使用方式
 
@@ -137,8 +130,6 @@
 請移除 Todoist：
 
     sudo pacman -Rns todoist
-
-並確認 `~/.config/caelestia/hypr-vars.lua` 裡的 `kbTodoWs` 是空的。
 
 ## 致謝
 

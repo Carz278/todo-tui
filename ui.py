@@ -7,31 +7,23 @@ from editor import MultiLineEditor
 
 
 def get_utf8_char(stdscr):
-    """读取一个完整的 UTF-8 字符（curses.getch 只给单字节）。"""
-    key = stdscr.getch()
-    if key < 0:
-        return None
-    if key < 128:
-        return chr(key)
-    byte = key
-    if (byte & 0xE0) == 0xC0:
-        need = 1
-    elif (byte & 0xF0) == 0xE0:
-        need = 2
-    elif (byte & 0xF8) == 0xF0:
-        need = 3
-    else:
-        return None
-    buf = bytes([byte])
-    for _ in range(need):
-        nxt = stdscr.getch()
-        if nxt < 0:
-            return None
-        buf += bytes([nxt])
+    """读取一个完整的 UTF-8 字符（使用 get_wch 自动处理多字节）。"""
     try:
-        return buf.decode("utf-8")
-    except UnicodeDecodeError:
+        ch = stdscr.get_wch()
+        if isinstance(ch, str):
+            return ch
         return None
+    except curses.error:
+        return None
+
+
+def read_key(stdscr):
+    """统一读取按键。返回 str（普通字符）或 int（特殊键）。"""
+    try:
+        return stdscr.get_wch()
+    except curses.error:
+        return None
+
 
 
 def tr(i18n, key, **kwargs):
@@ -46,8 +38,7 @@ def tr(i18n, key, **kwargs):
 
 
 def draw_main(stdscr, tasks, selected, view_offset, settings, i18n,
-              command_mode=False, search_mode=False, search_query="",
-              sort_mode=0):
+              command_mode=False, search_mode=False, search_query=""):
     stdscr.clear()
     h, w = stdscr.getmaxyx()
     stdscr.addstr(0, 0, tr(i18n, "title"))
@@ -65,37 +56,16 @@ def draw_main(stdscr, tasks, selected, view_offset, settings, i18n,
             stdscr.attron(curses.A_REVERSE)
         mark = "[*]" if task["done"] else "[ ]"
 
-        # Priority marker
-        prio = task.get("priority", 0)
-        prio_str = " " * 3
-        if prio == 1:
-            prio_str = "*  "
-        elif prio == 2:
-            prio_str = "** "
-        elif prio == 3:
-            prio_str = "***"
-
-        task_type = task.get("task_type", "deadline")
-        if task_type == "point":
-            left = days_left(task.get("event_date", ""))
-            if left is None:
-                dstr = ""
-            elif left < 0:
-                dstr = tr(i18n, "point_days_past", n=-left)
-            elif left == 0:
-                dstr = tr(i18n, "point_today")
-            else:
-                dstr = tr(i18n, "point_days_after", n=left)
+        # Days left based on deadline
+        left = days_left(task.get("deadline", ""))
+        if left is None:
+            dstr = ""
+        elif left < 0:
+            dstr = tr(i18n, "days_overdue", n=-left)
+        elif left == 0:
+            dstr = tr(i18n, "days_today")
         else:
-            left = days_left(task.get("deadline", ""))
-            if left is None:
-                dstr = ""
-            elif left < 0:
-                dstr = tr(i18n, "days_overdue", n=-left)
-            elif left == 0:
-                dstr = tr(i18n, "days_today")
-            else:
-                dstr = tr(i18n, "days_left", n=left)
+            dstr = tr(i18n, "days_left", n=left)
 
         short = task.get("short_comment", "")
         short_disp = ""
@@ -105,21 +75,17 @@ def draw_main(stdscr, tasks, selected, view_offset, settings, i18n,
                 first = first[:20] + "..."
             short_disp = f" ({first})"
 
-        line = f"{mark} {prio_str} {task['name']}{short_disp}{dstr}"
+        line = f"{mark} {task['name']}{short_disp}{dstr}"
         stdscr.addstr(screen_y, 0, line[:w - 1])
         if i == selected:
             stdscr.attroff(curses.A_REVERSE)
 
-    # Bottom status
     if search_mode:
         stdscr.addstr(h - 1, 0, tr(i18n, "search_prompt") + search_query)
     elif command_mode:
         stdscr.addstr(h - 1, 0, ": ")
     else:
-        sort_name = {0: "default", 1: "deadline", 2: "priority"}[sort_mode]
-        stdscr.addstr(h - 1, 0,
-                      tr(i18n, "task_count", n=len(tasks)) +
-                      f"  |  sort: {sort_name}")
+        stdscr.addstr(h - 1, 0, tr(i18n, "task_count", n=len(tasks)))
     stdscr.refresh()
 
 
@@ -131,11 +97,7 @@ def draw_detail(stdscr, task, settings, i18n):
     name = task["name"]
     name_col = len(name)
 
-    task_type = task.get("task_type", "deadline")
-    if task_type == "point":
-        date_str = task.get("event_date", "")
-    else:
-        date_str = task.get("deadline", "")
+    date_str = task.get("deadline", "")
     date_col = len(date_str)
 
     short_comment = task.get("short_comment", "")
@@ -162,19 +124,10 @@ def draw_detail(stdscr, task, settings, i18n):
         if edit_field == 0:
             stdscr.attroff(curses.A_REVERSE)
 
-        if task_type == "point":
-            stdscr.addstr(6, 0, tr(i18n, "date_event"))
-            stdscr.addstr(7, 0, format_date(task.get("event_date", ""),
-                                            settings['date_format']))
-            short_y, short_content_y, content_start_y = 9, 10, 12
-        else:
-            stdscr.addstr(6, 0, tr(i18n, "date_start"))
-            stdscr.addstr(7, 0, format_date(task.get("start_date", ""),
-                                            settings['date_format']))
-            stdscr.addstr(8, 0, tr(i18n, "date_deadline"))
-            stdscr.addstr(9, 0, format_date(task.get("deadline", ""),
-                                            settings['date_format']))
-            short_y, short_content_y, content_start_y = 11, 12, 14
+        stdscr.addstr(6, 0, tr(i18n, "date_deadline"))
+        stdscr.addstr(7, 0, format_date(task.get("deadline", ""),
+                                        settings['date_format']))
+        short_y, short_content_y, content_start_y = 9, 10, 12
 
         stdscr.addstr(short_y, 0,
                       tr(i18n, "short_label",
@@ -214,28 +167,25 @@ def draw_detail(stdscr, task, settings, i18n):
                         min(str_width(content_editor.lines[content_editor.row][:content_editor.col]), 78))
 
         stdscr.refresh()
-        key = stdscr.getch()
+        key = read_key(stdscr)
 
-        if key == 9:
+        if key in (9, '\t'):
             edit_field = {0: 2, 2: 3, 3: 0}[edit_field]
             continue
 
-        if key == curses.KEY_ENTER or key in (10, 13):
+        if key == curses.KEY_ENTER or key in (10, 13, '\n', '\r'):
             if edit_field == 3:
                 content_editor.insert_newline(settings['max_content'])
             continue
 
-        if key == ord(';'):
+        if key == ';':
             stdscr.move(22, 0)
             stdscr.clrtoeol()
             stdscr.addstr(22, 0, ": ")
             stdscr.refresh()
-            cmd = stdscr.getch()
-            if cmd == ord('s'):
-                if task_type == "point":
-                    task["event_date"] = date_str
-                else:
-                    task["deadline"] = date_str
+            cmd = read_key(stdscr)
+            if cmd == 's':
+                task["deadline"] = date_str
                 task["name"] = name[:settings['max_name']]
                 task["short_comment"] = short_comment[:settings['max_short_comment']]
                 task["content"] = content_editor.get_text()[:settings['max_content']]
@@ -245,7 +195,7 @@ def draw_detail(stdscr, task, settings, i18n):
                 stdscr.addstr(22, 0, tr(i18n, "saved"))
                 stdscr.refresh()
                 curses.napms(500)
-            elif cmd == ord('b'):
+            elif cmd == 'b':
                 current = {"name": name, "date_str": date_str,
                            "short": short_comment,
                            "content": content_editor.get_text()}
@@ -255,12 +205,9 @@ def draw_detail(stdscr, task, settings, i18n):
                     stdscr.clrtoeol()
                     stdscr.addstr(h - 1, 0, tr(i18n, "confirm_save"))
                     stdscr.refresh()
-                    confirm = stdscr.getch()
-                    if confirm in (ord('y'), ord('Y'), 10, 13):
-                        if task_type == "point":
-                            task["event_date"] = date_str
-                        else:
-                            task["deadline"] = date_str
+                    confirm = read_key(stdscr)
+                    if confirm in ('y', 'Y', 10, 13, '\n', '\r'):
+                        task["deadline"] = date_str
                         task["name"] = name[:settings['max_name']]
                         task["short_comment"] = short_comment[:settings['max_short_comment']]
                         task["content"] = content_editor.get_text()[:settings['max_content']]
@@ -268,7 +215,7 @@ def draw_detail(stdscr, task, settings, i18n):
                         return True
                 curses.curs_set(0)
                 return False
-            elif cmd == ord('/'):
+            elif cmd == '/':
                 query = ""
                 while True:
                     h, w = stdscr.getmaxyx()
@@ -276,16 +223,16 @@ def draw_detail(stdscr, task, settings, i18n):
                     stdscr.clrtoeol()
                     stdscr.addstr(h - 1, 0, tr(i18n, "search_prompt") + query)
                     stdscr.refresh()
-                    k2 = stdscr.getch()
-                    if k2 == curses.KEY_ENTER or k2 in (10, 13):
+                    k2 = read_key(stdscr)
+                    if k2 == curses.KEY_ENTER or k2 in (10, 13, '\n', '\r'):
                         break
-                    if k2 == 27:
+                    if k2 in (27, '\x1b'):
                         query = ""
                         break
                     if k2 in (curses.KEY_BACKSPACE, 127, 8):
                         query = query[:-1]
-                    elif 32 <= k2 <= 126:
-                        query += chr(k2)
+                    elif isinstance(k2, str):
+                        query += k2
                     else:
                         ch = get_utf8_char(stdscr)
                         if ch:
@@ -316,7 +263,7 @@ def draw_detail(stdscr, task, settings, i18n):
                             content_editor.row, content_editor.col = t[1]
             continue
 
-        if key == ord('n') and search_matches:
+        if key == 'n' and search_matches:
             search_index = (search_index + 1) % len(search_matches)
             t = search_matches[search_index]
             if t[0] == "short":
@@ -325,7 +272,7 @@ def draw_detail(stdscr, task, settings, i18n):
                 edit_field = 3
                 content_editor.row, content_editor.col = t[1]
             continue
-        if key == ord('N') and search_matches:
+        if key == 'N' and search_matches:
             search_index = (search_index - 1) % len(search_matches)
             t = search_matches[search_index]
             if t[0] == "short":
@@ -372,8 +319,8 @@ def draw_detail(stdscr, task, settings, i18n):
             continue
 
         ch = None
-        if 32 <= key <= 126:
-            ch = chr(key)
+        if isinstance(key, str):
+            ch = key
         else:
             ch = get_utf8_char(stdscr)
         if ch:
@@ -401,38 +348,38 @@ def input_with_counter(stdscr, y, prompt, max_len, i18n, allow_empty=False):
         stdscr.addstr(y + 1, 0, current)
         stdscr.move(y + 1, min(str_width(current), 78))
         stdscr.refresh()
-        key = stdscr.getch()
-        if key == curses.KEY_ENTER or key in (10, 13):
+        key = read_key(stdscr)
+        if key == curses.KEY_ENTER or key in (10, 13, '\n', '\r'):
             if allow_empty or len(current) > 0:
                 curses.curs_set(0)
                 return current
             continue
-        if key == ord(';'):
+        if key == ';':
             stdscr.addstr(y + 2, 0, ": ")
             stdscr.clrtoeol()
             stdscr.refresh()
-            cmd = stdscr.getch()
-            if cmd == ord('c'):
+            cmd = read_key(stdscr)
+            if cmd == 'c':
                 h, w = stdscr.getmaxyx()
                 stdscr.move(h - 1, 0)
                 stdscr.clrtoeol()
                 stdscr.addstr(h - 1, 0, tr(i18n, "confirm_cancel"))
                 stdscr.refresh()
-                confirm = stdscr.getch()
-                if confirm in (ord('y'), ord('Y'), 10, 13):
+                confirm = read_key(stdscr)
+                if confirm in ('y', 'Y', 10, 13, '\n', '\r'):
                     curses.curs_set(0)
                     return None
             continue
-        if key == 27:
+        if key in (27, '\x1b'):
             curses.curs_set(0)
             return None
         if key in (curses.KEY_BACKSPACE, 127, 8):
             if len(current) > 0:
                 current = current[:-1]
             continue
-        if 32 <= key <= 126:
+        if isinstance(key, str):
             if len(current) < max_len:
-                current += chr(key)
+                current += key
             continue
         ch = get_utf8_char(stdscr)
         if ch and len(current) < max_len:
@@ -444,35 +391,6 @@ def add_task(stdscr, settings, i18n):
     stdscr.clear()
     stdscr.addstr(0, 0, tr(i18n, "add_title"))
     stdscr.addstr(1, 0, tr(i18n, "add_help"))
-    stdscr.addstr(3, 0, tr(i18n, "add_type"))
-    stdscr.addstr(4, 0, tr(i18n, "add_type_1"))
-    stdscr.addstr(5, 0, tr(i18n, "add_type_2"))
-    stdscr.refresh()
-
-    task_type = None
-    while True:
-        key = stdscr.getch()
-        if key == ord('1'):
-            task_type = "deadline"
-            break
-        if key == ord('2'):
-            task_type = "point"
-            break
-        if key == ord(';'):
-            cmd = stdscr.getch()
-            if cmd == ord('c'):
-                h, w = stdscr.getmaxyx()
-                stdscr.move(h - 1, 0)
-                stdscr.clrtoeol()
-                stdscr.addstr(h - 1, 0, tr(i18n, "confirm_cancel"))
-                stdscr.refresh()
-                if stdscr.getch() in (ord('y'), ord('Y'), 10, 13):
-                    curses.curs_set(0)
-                    return None
-
-    stdscr.clear()
-    stdscr.addstr(0, 0, tr(i18n, "add_title"))
-    stdscr.addstr(1, 0, tr(i18n, "add_help"))
     stdscr.refresh()
 
     name = input_with_counter(stdscr, 3, tr(i18n, "add_name"),
@@ -481,33 +399,14 @@ def add_task(stdscr, settings, i18n):
         curses.curs_set(0)
         return None
 
-    start = ""
-    deadline = ""
-    event_date = ""
+    deadline_raw = input_with_counter(stdscr, 6, tr(i18n, "add_deadline"),
+                                      30, i18n, allow_empty=True)
+    if deadline_raw is None:
+        curses.curs_set(0)
+        return None
+    deadline = parse_date(deadline_raw, default_today=False)
 
-    if task_type == "deadline":
-        start_raw = input_with_counter(stdscr, 6, tr(i18n, "add_start"),
-                                       30, i18n, allow_empty=True)
-        if start_raw is None:
-            curses.curs_set(0)
-            return None
-        start = parse_date(start_raw, default_today=True)
-
-        deadline_raw = input_with_counter(stdscr, 9, tr(i18n, "add_deadline"),
-                                          30, i18n, allow_empty=True)
-        if deadline_raw is None:
-            curses.curs_set(0)
-            return None
-        deadline = parse_date(deadline_raw, default_today=False)
-    else:
-        event_raw = input_with_counter(stdscr, 6, tr(i18n, "add_event"),
-                                       30, i18n, allow_empty=True)
-        if event_raw is None:
-            curses.curs_set(0)
-            return None
-        event_date = parse_date(event_raw, default_today=False)
-
-    short_comment = input_with_counter(stdscr, 12, tr(i18n, "add_short"),
+    short_comment = input_with_counter(stdscr, 9, tr(i18n, "add_short"),
                                        settings['max_short_comment'], i18n,
                                        allow_empty=True)
     if short_comment is None:
@@ -517,11 +416,10 @@ def add_task(stdscr, settings, i18n):
     curses.curs_set(0)
     return {
         "name": name,
-        "task_type": task_type,
-        "start_date": start,
         "deadline": deadline,
-        "event_date": event_date,
         "short_comment": short_comment,
         "content": "",
         "done": False
     }
+
+

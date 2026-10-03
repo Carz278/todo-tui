@@ -1,8 +1,8 @@
 # todo-tui
 
-A terminal todo list TUI designed for [Caelestia](https://github.com/caelestia-dots/caelestia) dotfiles.
+A lightweight terminal todo list for [Caelestia](https://github.com/caelestia-dots/caelestia) / Hyprland.
 
-It replaces the heavy Todoist integration in Caelestia with a lightweight alternative.
+It replaces Caelestia's heavy Todoist integration with a simple TUI that lives in the `special:todo` workspace.
 
 [繁體中文說明](README.zh-TW.md)
 
@@ -13,7 +13,6 @@ It replaces the heavy Todoist integration in Caelestia with a lightweight altern
 - Bilingual: English and Traditional Chinese (zh-TW)
 - UTF-8 input: Chinese, Japanese, Korean work natively
 - Flexible dates: `2026-10-05`, `05/10`, `3 days`, `tmr`, `tomorrow`
-- Two task types: deadline-based or point-event
 - Short comment + detailed content
 - Fuzzy search with `;/`
 - `;` command mode to prevent accidental actions
@@ -32,7 +31,7 @@ It replaces the heavy Todoist integration in Caelestia with a lightweight altern
     cd todo-tui
     ./install.sh
 
-Then follow the printed instructions to update `hypr-vars.lua` and `hypr-user.lua`.
+Then follow the printed instructions to update `cli.json`.
 
 The installer supports two output languages:
 
@@ -59,17 +58,7 @@ The installer supports two output languages:
 
        cp todo-settings.json ~/.config/caelestia/todo-settings.json
 
-4. Disable Caelestia's built-in todo keybind. Edit `~/.config/caelestia/hypr-vars.lua`:
-
-       return {
-         kbTodoWs = "",
-       }
-
-5. Bind your own key. Edit `~/.config/caelestia/hypr-user.lua`:
-
-       hl.bind("SUPER + R", hl.dsp.exec_cmd("/path/to/todo-tui/toggle-todo.sh"))
-
-6. Configure Caelestia. Edit `~/.config/caelestia/cli.json`:
+4. Register with Caelestia. Edit `~/.config/caelestia/cli.json` (create it if it doesn't exist):
 
        {
          "toggles": {
@@ -88,7 +77,11 @@ The installer supports two output languages:
          }
        }
 
-7. Log out and log back in.
+   Replace `/path/to/todo-tui` with the actual path.
+
+5. Log out and log back in.
+
+That's it. `Super + R` will now open `todo-tui` in the `special:todo` workspace.
 
 ## Usage
 
@@ -137,8 +130,6 @@ This can cause `Super + R` to open both Todoist and todo-tui.
 To fix, remove Todoist:
 
     sudo pacman -Rns todoist
-
-And make sure `kbTodoWs` is empty in `~/.config/caelestia/hypr-vars.lua`.
 
 ## Credits
 

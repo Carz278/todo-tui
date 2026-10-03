@@ -1,7 +1,6 @@
 #!/bin/bash
 # install.sh - Deploy todo-tui to a Caelestia environment
 # Usage: ./install.sh [--zh|--en]
-# Default language: English
 
 set -e
 
@@ -9,12 +8,8 @@ set -e
 LANG_CODE="en"
 for arg in "$@"; do
     case "$arg" in
-        --zh|--zh-TW|--chinese)
-            LANG_CODE="zh"
-            ;;
-        --en|--english)
-            LANG_CODE="en"
-            ;;
+        --zh|--zh-TW|--chinese) LANG_CODE="zh" ;;
+        --en|--english) LANG_CODE="en" ;;
         --help|-h)
             echo "Usage: $0 [--zh|--en]"
             echo "  --zh    Use Traditional Chinese output"
@@ -62,21 +57,15 @@ if [ "$LANG_CODE" = "zh" ]; then
     MSG_CHECK_CAELESTIA="检查 Caelestia 配置..."
     MSG_CAELESTIA_MISSING="未找到 ~/.config/caelestia/，请先安装 Caelestia。"
     MSG_CAELESTIA_OK="Caelestia 配置目录存在"
-    MSG_CONFLICT_TITLE="冲突检查（重要）"
-    MSG_CONFLICT_KBTODO="检测到 hypr-vars.lua 里的 kbTodoWs 没有被置空。"
-    MSG_CONFLICT_KBTODO_WHY="这会导致 Super+R 同时触发 Caelestia 自带的 todo 逻辑。"
-    MSG_CONFLICT_KBTODO_FIX="请把文件改成："
-    MSG_CONFLICT_KBTODO_OK="hypr-vars.lua 已正确置空 kbTodoWs"
+    MSG_CONFLICT_TITLE="冲突检查"
     MSG_CONFLICT_TODOIST="检测到系统里仍安装着 Todoist。"
     MSG_CONFLICT_TODOIST_WHY="这可能导致 Super+R 同时打开 Todoist 和 todo-tui。"
     MSG_CONFLICT_TODOIST_FIX="卸载命令："
     MSG_CONFLICT_TODOIST_OK="系统里没有 Todoist"
     MSG_CONFLICT_RESOLVE="请先解决上面的冲突，否则 Super+R 可能行为异常。"
-    MSG_DONE_TITLE="安装完成！还需要手动修改两个文件"
-    MSG_STEP1="1. 编辑 ~/.config/caelestia/cli.json"
-    MSG_STEP1_DESC="   复制以下内容："
-    MSG_STEP2="2. 编辑 ~/.config/caelestia/hypr-user.lua"
-    MSG_STEP2_DESC="   加入下面这行："
+    MSG_DONE_TITLE="安装完成！还需要修改 cli.json"
+    MSG_STEP1="编辑 ~/.config/caelestia/cli.json"
+    MSG_STEP1_DESC="   如果文件不存在，创建它；如果存在，把下面内容合并进去："
     MSG_LAST_STEP="最后一步：注销并重新登录，让配置生效。"
 else
     MSG_CHECK_ENV="Checking basic environment..."
@@ -108,21 +97,15 @@ else
     MSG_CHECK_CAELESTIA="Checking Caelestia configuration..."
     MSG_CAELESTIA_MISSING="~/.config/caelestia/ not found. Please install Caelestia first."
     MSG_CAELESTIA_OK="Caelestia config directory exists"
-    MSG_CONFLICT_TITLE="Conflict check (important)"
-    MSG_CONFLICT_KBTODO="kbTodoWs in hypr-vars.lua is not empty."
-    MSG_CONFLICT_KBTODO_WHY="This will cause Super+R to trigger both Caelestia's todo and todo-tui."
-    MSG_CONFLICT_KBTODO_FIX="Please edit the file to:"
-    MSG_CONFLICT_KBTODO_OK="hypr-vars.lua already empties kbTodoWs"
+    MSG_CONFLICT_TITLE="Conflict check"
     MSG_CONFLICT_TODOIST="Todoist is still installed on your system."
     MSG_CONFLICT_TODOIST_WHY="This may cause Super+R to open both Todoist and todo-tui."
     MSG_CONFLICT_TODOIST_FIX="To remove it:"
     MSG_CONFLICT_TODOIST_OK="No Todoist found on the system"
-    MSG_CONFLICT_RESOLVE="Please resolve the conflicts above before using Super+R."
-    MSG_DONE_TITLE="Installation complete. Two files still need manual edits."
-    MSG_STEP1="1. Edit ~/.config/caelestia/cli.json"
-    MSG_STEP1_DESC="   Copy the following:"
-    MSG_STEP2="2. Edit ~/.config/caelestia/hypr-user.lua"
-    MSG_STEP2_DESC="   Add this line:"
+    MSG_CONFLICT_RESOLVE="Please resolve the conflict above before using Super+R."
+    MSG_DONE_TITLE="Installation complete. cli.json still needs to be edited."
+    MSG_STEP1="Edit ~/.config/caelestia/cli.json"
+    MSG_STEP1_DESC="   If it doesn't exist, create it. If it does, merge the following:"
     MSG_LAST_STEP="Last step: log out and log back in to apply changes."
 fi
 
@@ -254,24 +237,6 @@ echo
 
 CONFLICT_FOUND=0
 
-HYPR_VARS="$CAELESTIA_DIR/hypr-vars.lua"
-if [ -f "$HYPR_VARS" ]; then
-    if ! grep -q 'kbTodoWs *= *""' "$HYPR_VARS"; then
-        warn "$MSG_CONFLICT_KBTODO"
-        warn "$MSG_CONFLICT_KBTODO_WHY"
-        echo
-        echo "  $MSG_CONFLICT_KBTODO_FIX"
-        echo
-        echo '    return {'
-        echo '      kbTodoWs = "",'
-        echo '    }'
-        echo
-        CONFLICT_FOUND=1
-    else
-        ok "$MSG_CONFLICT_KBTODO_OK"
-    fi
-fi
-
 if command -v todoist &> /dev/null || pacman -Q todoist &> /dev/null 2>&1; then
     warn "$MSG_CONFLICT_TODOIST"
     warn "$MSG_CONFLICT_TODOIST_WHY"
@@ -316,11 +281,6 @@ cat <<CLI_EOF
   }
 }
 CLI_EOF
-echo
-echo "$MSG_STEP2"
-echo "$MSG_STEP2_DESC"
-echo
-echo "    hl.bind(\"SUPER + R\", hl.dsp.exec_cmd(\"$PROJECT_DIR/toggle-todo.sh\"))"
 echo
 echo "============================================"
 echo "  $MSG_LAST_STEP"
